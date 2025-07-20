@@ -17,6 +17,9 @@ class Employee:
             "Salary": self.salary
         }
 
+    def identity(self):
+        return (self.name, "Employee")
+
 # --- Derived Classes ---
 class Manager(Employee):
     def __init__(self, name, salary, team_size):
@@ -34,6 +37,9 @@ class Manager(Employee):
             "Team Size": self.team_size
         }
 
+    def identity(self):
+        return (self.name, "Manager")
+
 class Developer(Employee):
     def __init__(self, name, salary, language):
         super().__init__(name, salary)
@@ -50,6 +56,9 @@ class Developer(Employee):
             "Language": self.language
         }
 
+    def identity(self):
+        return (self.name, "Developer")
+
 class Intern(Employee):
     def __init__(self, name, salary, duration_months):
         super().__init__(name, salary)
@@ -65,6 +74,9 @@ class Intern(Employee):
             "Salary": self.salary,
             "Duration (months)": self.duration
         }
+
+    def identity(self):
+        return (self.name, "Intern")
 
 # --- Initialize session state ---
 if "employee_list" not in st.session_state:
@@ -89,8 +101,9 @@ with st.form("employee_form"):
 
     submitted = st.form_submit_button("Add Employee")
 
-# Add new employee to session state list
+# Add new employee (check for duplicates)
 if submitted and name:
+    # Create employee instance
     if employee_type == "Manager":
         emp = Manager(name, salary, team_size)
     elif employee_type == "Developer":
@@ -98,21 +111,33 @@ if submitted and name:
     else:
         emp = Intern(name, salary, duration)
 
-    st.session_state.employee_list.append(emp)
-    st.success("✅ Employee Added!")
-    st.markdown(f"### Profile\n{emp.get_info()}")
+    identities = [e.identity() for e in st.session_state.employee_list]
+    if emp.identity() in identities:
+        st.warning("⚠️ This employee already exists.")
+    else:
+        st.session_state.employee_list.append(emp)
+        st.success("✅ Employee Added!")
+        st.markdown(f"### Profile\n{emp.get_info()}")
 
-# --- Show all employees ---
+# --- Show all employees with remove buttons ---
 if st.session_state.employee_list:
     st.subheader("📋 All Employees")
 
+    for idx, emp in enumerate(st.session_state.employee_list):
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.markdown(f"- {emp.get_info()}")
+        with col2:
+            if st.button("🗑️ Remove", key=f"remove_{idx}"):
+                st.session_state.employee_list.pop(idx)
+                st.experimental_rerun()
+
+    # --- Download as CSV ---
     data = [emp.to_dict() for emp in st.session_state.employee_list]
     df = pd.DataFrame(data).fillna("")
 
-    st.dataframe(df, use_container_width=True)
-
-    # --- Download as CSV ---
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", csv, "employees.csv", "text/csv")
+    if not df.empty:
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Download CSV", csv, "employees.csv", "text/csv")
 else:
     st.info("No employees added yet.")
