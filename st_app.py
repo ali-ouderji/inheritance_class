@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # --- Base Class ---
 class Employee:
@@ -9,6 +10,13 @@ class Employee:
     def get_info(self):
         return f"{self.name} earns ${self.salary}"
 
+    def to_dict(self):
+        return {
+            "Type": "Employee",
+            "Name": self.name,
+            "Salary": self.salary
+        }
+
 # --- Derived Classes ---
 class Manager(Employee):
     def __init__(self, name, salary, team_size):
@@ -18,6 +26,14 @@ class Manager(Employee):
     def get_info(self):
         return f"👩‍💼 Manager {self.name} manages {self.team_size} people and earns ${self.salary}"
 
+    def to_dict(self):
+        return {
+            "Type": "Manager",
+            "Name": self.name,
+            "Salary": self.salary,
+            "Team Size": self.team_size
+        }
+
 class Developer(Employee):
     def __init__(self, name, salary, language):
         super().__init__(name, salary)
@@ -26,6 +42,14 @@ class Developer(Employee):
     def get_info(self):
         return f"💻 Developer {self.name} codes in {self.language} and earns ${self.salary}"
 
+    def to_dict(self):
+        return {
+            "Type": "Developer",
+            "Name": self.name,
+            "Salary": self.salary,
+            "Language": self.language
+        }
+
 class Intern(Employee):
     def __init__(self, name, salary, duration_months):
         super().__init__(name, salary)
@@ -33,6 +57,18 @@ class Intern(Employee):
 
     def get_info(self):
         return f"📘 Intern {self.name} is here for {self.duration} months and earns ${self.salary}"
+
+    def to_dict(self):
+        return {
+            "Type": "Intern",
+            "Name": self.name,
+            "Salary": self.salary,
+            "Duration (months)": self.duration
+        }
+
+# --- Initialize session state ---
+if "employee_list" not in st.session_state:
+    st.session_state.employee_list = []
 
 # --- Streamlit UI ---
 st.title("🏢 Employee Management System")
@@ -53,8 +89,8 @@ with st.form("employee_form"):
 
     submitted = st.form_submit_button("Add Employee")
 
-# Display result
-if submitted:
+# Add new employee to session state list
+if submitted and name:
     if employee_type == "Manager":
         emp = Manager(name, salary, team_size)
     elif employee_type == "Developer":
@@ -62,5 +98,21 @@ if submitted:
     else:
         emp = Intern(name, salary, duration)
 
+    st.session_state.employee_list.append(emp)
     st.success("✅ Employee Added!")
     st.markdown(f"### Profile\n{emp.get_info()}")
+
+# --- Show all employees ---
+if st.session_state.employee_list:
+    st.subheader("📋 All Employees")
+
+    data = [emp.to_dict() for emp in st.session_state.employee_list]
+    df = pd.DataFrame(data).fillna("")
+
+    st.dataframe(df, use_container_width=True)
+
+    # --- Download as CSV ---
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", csv, "employees.csv", "text/csv")
+else:
+    st.info("No employees added yet.")
